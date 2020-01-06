@@ -1,0 +1,12 @@
+http://www.openslr.org/resources/18/data_thchs30.tgz
+http://www.openslr.org/resources/18/test-noise.tgz
+http://www.openslr.org/resources/18/resource.tgz
+http://www.openslr.org/resources/33/data_aishell.tgz
+http://www.openslr.org/resources/33/resource_aishell.tgz
+http://www.openslr.org/resources/38/ST-CMDS-20170001_1-OS.tar.gz
+http://www.openslr.org/resources/47/primewords_md_2018_set1.tar.gz
+http://www.openslr.org/resources/62/aidatatang_200zh.tgz
+http://www.openslr.org/resources/68/train_set.tar.gz
+http://www.openslr.org/resources/68/dev_set.tar.gz
+http://www.openslr.org/resources/68/test_set.tar.gz
+http://www.openslr.org/resources/68/metadata.tar.gz

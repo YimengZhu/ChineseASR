@@ -12,7 +12,7 @@ train_wav_paths = [os.path.join(dirpath, f)
 
 train_transcript_path = list(map(lambda wav_path : wav_path + '.trn', train_wav_paths))
 
-with open('train_manifest.csv', 'w', newline='') as file:
+with open('train_manifest_thchs30.csv', 'w', newline='') as file:
     writer = csv.writer(file)
     for i in range(len(train_wav_paths)):
         writer.writerow([train_wav_paths[i], train_transcript_path[i]])
@@ -24,7 +24,7 @@ dev_wav_paths = [os.path.join(dirpath, f)
 
 dev_transcript_path = list(map(lambda wav_path : wav_path + '.trn', dev_wav_paths))
 
-with open('dev_manifest.csv', 'w', newline='') as file:
+with open('dev_manifest_thchs30.csv', 'w', newline='') as file:
     writer = csv.writer(file)
     for i in range(len(dev_wav_paths)):
         writer.writerow([dev_wav_paths[i], dev_transcript_path[i]])
@@ -36,7 +36,7 @@ val_wav_paths = [os.path.join(dirpath, f)
 
 val_transcript_path = list(map(lambda wav_path : wav_path + '.trn', val_wav_paths))
 
-with open('val_manifest.csv', 'w', newline='') as file:
+with open('val_manifest_thchs30.csv', 'w', newline='') as file:
     writer = csv.writer(file)
     for i in range(len(val_wav_paths)):
         writer.writerow([val_wav_paths[i], val_transcript_path[i]])

@@ -1,3 +1,4 @@
+import numpy as np
 import fnmatch
 import tarfile
 import glob
@@ -14,14 +15,14 @@ def extract_data(data_folder):
         print('extracting {}'.format(targz))
         with tarfile.open(targz) as tar:
             tar.extractall(os.path.dirname(targz))
-            # os.remove(targz)
+            os.remove(targz)
 
 
 def generate_trn(data_folder):
     transcripts_path = os.path.join(data_folder, 'data', 'trans.txt')
 
     with open(transcripts_path) as fin:
-        transcripts = dict((line.split(' ', maxsplit=1) for line in fin))
+        transcripts = dict(line.split('\t', maxsplit=1) for line in fin)
 
     wav_path = [os.path.join(dirpath, f)
                 for dirpath, dirnames, files in os.walk(data_folder)

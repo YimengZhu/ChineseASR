@@ -1,9 +1,10 @@
+from tqdm import tqdm
 import os
 import csv
 import pandas
 import fnmatch
 
-base_path = '/project/student_projects3/yzhu/data/magicdata'
+base_path = '/project/iwslt2014c/EN/student_projects/yzhu/data/magicdata'
 
 
 def generate_trn(data_path):
@@ -14,9 +15,9 @@ def generate_trn(data_path):
                 for dirpath, dirnames, files in os.walk(data_path)
                 for f in fnmatch.filter(files, '*.wav')]
 
-    for wav in wav_path:
+    print('generating trn files')
+    for wav in tqdm(wav_path):
         trn = os.path.splitext(wav)[0] + '.trn'
-        print("genearting trn files for {}".format(trn))
         with open(trn, 'w') as ftrn:
             wav_name = os.path.basename(wav)
             ftrn.write(transcripts.loc[wav_name, 'Transcription'])
@@ -29,12 +30,14 @@ def generate_csv(data_path):
                         for dirpath, dirnames, files in os.walk(train_path)
                         for f in fnmatch.filter(files, '*.wav')]
 
-    train_transcript_path = list(map(lambda wav_path : wav_path + '.trn',
+    train_transcript_path = list(map(lambda wav_path :
+                                     os.path.splitext(wav_path)[0] + '.trn',
                                      train_wav_paths))
 
+    print('generating train_manifest_magicdata.csv')
     with open('train_manifest_magicdata.csv', 'w', newline='') as file:
         writer = csv.writer(file)
-        for i in range(len(train_wav_paths)):
+        for i in tqdm(range(len(train_wav_paths))):
             writer.writerow([train_wav_paths[i], train_transcript_path[i]])
     
     
@@ -44,12 +47,14 @@ def generate_csv(data_path):
                         for dirpath, dirnames, files in os.walk(dev_path)
                         for f in fnmatch.filter(files, '*.wav')]
 
-    dev_transcript_path = list(map(lambda wav_path : wav_path + '.trn',
-                                     dev_wav_paths))
+    dev_transcript_path = list(map(lambda wav_path : 
+                                    os.path.splitext(wav_path)[0] + '.trn',
+                                    dev_wav_paths))
 
+    print('generating dev_manifest_magicdata.csv')
     with open('dev_manifest_magicdata.csv', 'w', newline='') as file:
         writer = csv.writer(file)
-        for i in range(len(dev_wav_paths)):
+        for i in tqdm(range(len(dev_wav_paths))):
             writer.writerow([dev_wav_paths[i], dev_transcript_path[i]])
     
     
@@ -59,20 +64,22 @@ def generate_csv(data_path):
                         for dirpath, dirnames, files in os.walk(test_path)
                         for f in fnmatch.filter(files, '*.wav')]
 
-    test_transcript_path = list(map(lambda wav_path : wav_path + '.trn',
+    test_transcript_path = list(map(lambda wav_path :
+                                    os.path.splitext(wav_path)[0] + '.trn',
                                      test_wav_paths))
-
+    
+    print('generating test_manifest_magicdata.csv')
     with open('test_manifest_magicdata.csv', 'w', newline='') as file:
         writer = csv.writer(file)
-        for i in range(len(test_wav_paths)):
+        for i in tqdm(range(len(test_wav_paths))):
             writer.writerow([test_wav_paths[i], test_transcript_path[i]])
 
 
 def process(dataset_path):
     print('starting to process {}'.format(dataset_path))
-    for subset in ['train', 'test', 'dev']:
-        subset_path = os.path.join(dataset_path, subset)
-        generate_trn(subset_path)
+    # for subset in ['train', 'test', 'dev']:
+      #  subset_path = os.path.join(dataset_path, subset)
+        # generate_trn(subset_path)
 
     generate_csv(dataset_path)
 

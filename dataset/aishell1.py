@@ -3,9 +3,10 @@ import tarfile
 import glob
 import os
 import csv
+from tqdm import tqdm
 
 
-base_path = '/project/student_projects3/yzhu/data/aishell1/data_aishell'
+base_path = '/project/iwslt2014c/EN/student_projects/yzhu/data/aishell1/data_aishell'
 
 def extract_data(data_folder):
     print('extracting data in aishell1 folder')
@@ -28,9 +29,9 @@ def generate_trn(data_folder):
                 for dirpath, dirnames, files in os.walk(data_folder)
                 for f in fnmatch.filter(files, '*.wav')]
 
-    for wav in wav_path:
+    print('generating trn files...')
+    for wav in tqdm(wav_path):
         trn = os.path.splitext(wav)[0] + '.trn'
-        print('genearting trn files for {}'.format(trn))
         with open(trn, 'w') as ftrn:
             wav_name = os.path.splitext(os.path.basename(wav))[0]
             try:
@@ -49,9 +50,10 @@ def generate_csv(data_folder):
     train_trn_path = list(map(lambda wav_path : os.path.splitext(wav_path)[0] +
                                                     '.trn', train_wav_path))
 
+    print('generating train_manifest_aishell1.csv')
     with open('train_manifest_aishell1.csv', 'w', newline='') as file:
         writer = csv.writer(file)
-        for i in range(len(train_wav_path)):
+        for i in tqdm(range(len(train_wav_path))):
             writer.writerow([train_wav_path[i], train_trn_path[i]])
 
     
@@ -64,9 +66,10 @@ def generate_csv(data_folder):
     dev_trn_path = list(map(lambda wav_path : os.path.splitext(wav_path)[0] +
                                                     '.trn', dev_wav_path))
     
+    print('generating dev_manifest_aishell1.csv')
     with open('dev_manifest_aishell1.csv', 'w', newline='') as file:
         writer = csv.writer(file)
-        for i in range(len(dev_wav_path)):
+        for i in tqdm(range(len(dev_wav_path))):
             writer.writerow([dev_wav_path[i], dev_trn_path[i]])
 
 
@@ -78,10 +81,10 @@ def generate_csv(data_folder):
 
     test_trn_path = list(map(lambda wav_path : os.path.splitext(wav_path)[0] +
                                                     '.trn', test_wav_path))
-    
+    print('generating val_manifest_aishell1.csv')
     with open('val_manifest_aishell1.csv', 'w', newline='') as file:
         writer = csv.writer(file)
-        for i in range(len(test_wav_path)):
+        for i in tqdm(range(len(test_wav_path))):
             writer.writerow([test_wav_path[i], test_trn_path[i]])
 
 

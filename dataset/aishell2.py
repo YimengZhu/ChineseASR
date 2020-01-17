@@ -1,3 +1,4 @@
+from tqdm import tqdm
 import numpy as np
 import fnmatch
 import tarfile
@@ -6,7 +7,7 @@ import os
 import csv
 
 
-base_path = '/project/student_projects3/yzhu/data/aishell2'
+base_path = '/project/iwslt2014c/EN/student_projects/yzhu/data/aishell2'
 
 def extract_data(data_folder):
     print('extracting data in aishell2 folder')
@@ -19,6 +20,7 @@ def extract_data(data_folder):
 
 
 def generate_trn(data_folder):
+    print('generating trn files...')
     transcripts_path = os.path.join(data_folder, 'data', 'trans.txt')
 
     with open(transcripts_path) as fin:
@@ -28,9 +30,8 @@ def generate_trn(data_folder):
                 for dirpath, dirnames, files in os.walk(data_folder)
                 for f in fnmatch.filter(files, '*.wav')]
 
-    for wav in wav_path:
+    for wav in tqdm(wav_path):
         trn = os.path.splitext(wav)[0] + '.trn'
-        print('genearting trn files for {}'.format(trn))
         with open(trn, 'w') as ftrn:
             wav_name = os.path.splitext(os.path.basename(wav))[0]
             try:
@@ -57,19 +58,22 @@ def generate_csv(base_path, dev_per=0.1, val_per=0.1):
                           int(- len(indices) * val_per)]
     train_indices = indices[: int(- len(indices) * (dev_per + val_per))]
  
+    print('generating train_manifest_aishell2.csv')
     with open('train_manifest_aishell2.csv', 'w', newline='') as file:
         writer = csv.writer(file)
-        for i in range(len(train_indices)):
+        for i in tqdm(range(len(train_indices))):
             writer.writerow([wav_path[train_indices[i]], trn_path[train_indices[i]]])
 
+    print('generating dev_manifest_aishell2.csv')
     with open('dev_manifest_aishell2.csv', 'w', newline='') as file:
         writer = csv.writer(file)
-        for i in range(len(dev_indices)):
+        for i in tqdm(range(len(dev_indices))):
             writer.writerow([wav_path[dev_indices[i]], trn_path[dev_indices[i]]])
 
+    print('generating val_manifest_aishell2.csv')
     with open('val_manifest_aishell2.csv', 'w', newline='') as file:
         writer = csv.writer(file)
-        for i in range(len(val_indices)):
+        for i in tqdm(range(len(val_indices))):
             writer.writerow([wav_path[val_indices[i]], trn_path[val_indices[i]]])
 
 

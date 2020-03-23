@@ -1,20 +1,20 @@
 import math
 import torch
 import torch.nn as nn
-
+import torch.nn.functional as F
 
 class MultiHeadAttention(nn.Module):
     def __init__(self, num_header, dim_hidden):
-        super.__init__(MultiHeadAttention, self)
+        super(MultiHeadAttention, self).__init__()
         self.num_header = num_header
         self.dim_hidden = dim_hidden
         self.dim_header = dim_hidden // num_header
 
-        self.query = nn.Linear(d_model, d_model)
-        self.value = nn.Linear(d_model, d_model)
-        self.key = nn.Linear(d_model, d_model)
+        self.query = nn.Linear(dim_hidden, dim_hidden)
+        self.value = nn.Linear(dim_hidden, dim_hidden)
+        self.key = nn.Linear(dim_hidden, dim_hidden)
 
-        self.out = nn.Linear(d_model, d_model)
+        self.out = nn.Linear(dim_hidden, dim_hidden)
 
     def forward(self, q, k, v):
         batch_size = q.size(0)
@@ -28,9 +28,9 @@ class MultiHeadAttention(nn.Module):
         q = q.transpose(1,2)
         v = v.transpose(1,2)
 
-        scores = torch.matmul(q, k.transpose(-2, -1)) /  math.sqrt(d_k)
+        scores = torch.matmul(q, k.transpose(-2, -1)) / math.sqrt(self.dim_header)
         scores = F.softmax(scores, dim=-1)
-        output = torch.matmul(scores, v)
+        scores = torch.matmul(scores, v)
 
         concat = scores.transpose(1,2).contiguous().view(batch_size, -1, self.dim_hidden)
         output = self.out(concat)
@@ -39,14 +39,14 @@ class MultiHeadAttention(nn.Module):
 
 class SelfAttention(nn.Module):
     def __init__(self, num_header, dim_hidden, dim_ff=2048, residual=True):
-        super.__init__(SelfAttention, self)
+        super(SelfAttention, self).__init__()
         self.residual = residual
 
         self.multiHeadAttention = MultiHeadAttention(num_header, dim_hidden)
 
         self.norm = nn.BatchNorm1d(dim_hidden)
 
-        self.feedforward = nn.Seqential(
+        self.feedforward = nn.Sequential(
             nn.Linear(dim_hidden, dim_ff),
             nn.ReLU(),
             nn.Linear(dim_ff, dim_hidden)

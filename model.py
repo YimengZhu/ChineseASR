@@ -70,7 +70,6 @@ class DeepSpeech(nn.Module):
         )
 
     def forward(self, x, x_lengths):
-
         x = self.cnns(x)
 
         for m in self.cnns.modules():

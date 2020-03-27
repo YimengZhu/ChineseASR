@@ -19,18 +19,11 @@ def set_deterministic(seed=123456):
     np.random.seed(args.seed)
     random.seed(args.seed)
 
-def train(model='DeepSpeech', epochs=10):
-
-    with open('lexicon.json') as label_file:
-        labels = str(''.join(json.load(label_file)))
+def train(model, epochs=10):
 
     train_dataset = SpeechDataset('train.csv')
     train_loader = SpeechDataloader(train_dataset, batch_size=8)
 
-    if model=='DeepSpeech':
-        model = DeepSpeech(len(labels)).cuda()
-    else:
-        model = DeepSpeechTransformer(len(labels)).cuda()
 
     optimizer = torch.optim.SGD(model.parameters(), lr=0.0001)
     criterion = torch.nn.CTCLoss(reduction='sum', zero_infinity=True)
@@ -48,6 +41,7 @@ def train(model='DeepSpeech', epochs=10):
                 loss = loss / feature.size(0)
                 optimizer.zero_grad()
                 loss.backward()
+                torch.nn.utils.clip_grad_value_(model.parameters(), 400)
                 optimizer.step()
             print('epoch {}, {}/{}, loss: {}'.format(epoch, i,
                                                      len(train_loader),
@@ -58,4 +52,18 @@ def train(model='DeepSpeech', epochs=10):
 
 if __name__ == '__main__':
     args = parser.parse_args()
-    train(model=args.model)
+
+    with open('lexicon.json') as label_file:
+        labels = str(''.join(json.load(label_file)))
+
+    if args.model == 'DeepSpeech':
+        model = DeepSpeech(len(labels)).cuda()
+    else:
+        model = DeepSpeechTransformer(len(labels)).cuda()
+
+    print(model, flush=True)
+    print('Number of trained parameter: {}'.
+          format(sum(p.numel() for p in model.parameters() if
+                     p.requires_grad)), flush=True)
+
+    train(model)

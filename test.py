@@ -6,6 +6,7 @@ from data_loader import SpeechDataset, SpeechDataloader
 from decoder import GreedyDecoder
 from model import DeepSpeech, DeepSpeechTransformer
 import torch
+# from torch.utils.tensorboard import SummaryWriter
 from pdb import set_trace as bp
 
 parser = argparse.ArgumentParser()
@@ -13,6 +14,7 @@ parser.add_argument('--model', default='DeepSpeech')
 parser.add_argument('--model_folder', default='checkpoints')
 
 def evaluate(model, decoder):
+
     test_dataset = SpeechDataset('test.csv')
     test_loader = SpeechDataloader(test_dataset, batch_size=8)
 
@@ -31,18 +33,20 @@ def evaluate(model, decoder):
 
         for j, true_transcript in enumerate(label_str):
             pred_transcript = predict_str[j]
-            # pred_transcript.replace(' ', '')
-            # true_transcript.replace(' ', '')
-            bp()
             cer += distance(pred_transcript, true_transcript)
-            num_char += len(true_transcript)
+            num_char += max(len(true_transcript), len(pred_transcript))
 
+    avg_cer = cer / num_char
     print('number of test samples: {}, number of characters: {}, everage cer{}.'.
-          format(len(test_dataset), num_char, cer/num_char))
+          format(len(test_dataset), num_char, avg_cer))
+
+    return avg_cer
 
 
 if __name__ == '__main__':
     args = parser.parse_args()
+
+    # writer = SummaryWriter('runs/{}'.format(args.model))
 
     with open('lexicon.json') as label_file:
         labels = str(''.join(json.load(label_file)))
@@ -52,15 +56,15 @@ if __name__ == '__main__':
     elif args.model == 'DeepSpeechTransformer':
         model = DeepSpeechTransformer(len(labels)).cuda()
 
-    print(model, flush=True)
+    # print(model, flush=True)
     print('Number of trained parameter: {}'.
           format(sum(p.numel() for p in model.parameters() if
                      p.requires_grad)), flush=True)
 
-    for i in range(5):
+    for i in range(4, 5):
         model_path = args.model_folder + '/model{}.pt'.format(i)
         model.load_state_dict(torch.load(model_path))
         # model.eval()
         decoder = GreedyDecoder()
-        evaluate(model, decoder)
-
+        cer = evaluate(model, decoder)
+        # writer.add_scalar('acc', cer, i)

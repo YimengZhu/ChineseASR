@@ -1,6 +1,7 @@
 import os
 import json
 import torch
+# from torch.utils.tensorboard import SummaryWriter
 import numpy as np
 import argparse
 
@@ -28,6 +29,8 @@ def train(model, epochs=10):
     optimizer = torch.optim.SGD(model.parameters(), lr=0.0001)
     criterion = torch.nn.CTCLoss(reduction='sum', zero_infinity=True)
 
+    # tbwriter = SummaryWriter('runs/{}'.format(type(model).__name__))
+
     print('initialed')
     for epoch in range(epochs):
         for i, data in enumerate(train_loader):
@@ -46,6 +49,9 @@ def train(model, epochs=10):
             print('epoch {}, {}/{}, loss: {}'.format(epoch, i,
                                                      len(train_loader),
                                                      loss.item()), flush=True)
+          # if i / 1000 == 0:
+                # writer.add_scalar('training loss', loss, epoch * len(train_loader) + i)
+
         save_path = os.path.join(os.getcwd(), 'checkpoints', 'model{}.pt'.format(epoch))
         torch.save(model.state_dict(), save_path)
 
@@ -57,7 +63,7 @@ if __name__ == '__main__':
         labels = str(''.join(json.load(label_file)))
 
     if args.model == 'DeepSpeech':
-        model = DeepSpeech(len(labels)).cuda()
+        model = DeepSpeech(600, len(labels)).cuda()
     else:
         model = DeepSpeechTransformer(len(labels)).cuda()
 

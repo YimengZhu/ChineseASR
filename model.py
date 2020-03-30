@@ -42,7 +42,7 @@ class Transducer(nn.Module):
 
 
 class DeepSpeech(nn.Module):
-    def __init__(self, num_char):
+    def __init__(self, rnn_hidden, num_char):
         super(DeepSpeech, self).__init__()
 
         self.cnns = nn.Sequential(
@@ -56,17 +56,17 @@ class DeepSpeech(nn.Module):
         )
 
         self.rnns = nn.Sequential(
-            BatchRNN(1312, 768, batch_norm=False),
-            BatchRNN(768, 768),
-            BatchRNN(768, 768),
-            BatchRNN(768, 768),
-            BatchRNN(768, 768),
-            BatchRNN(768, 768)
+            BatchRNN(1312, rnn_hiden, batch_norm=False),
+            BatchRNN(rnn_hiden, rnn_hiden),
+            BatchRNN(rnn_hiden, rnn_hiden),
+            BatchRNN(rnn_hiden, rnn_hiden),
+            BatchRNN(rnn_hiden, rnn_hiden),
+            BatchRNN(rnn_hiden, rnn_hiden)
         )
 
         self.fc = nn.Sequential(
-            nn.BatchNorm1d(768),
-            nn.Linear(768, num_char, bias=False)
+            nn.BatchNorm1d(rnn_hiden),
+            nn.Linear(rnn_hiden, num_char, bias=False)
         )
 
     def forward(self, x, x_lengths):
@@ -130,6 +130,7 @@ class DeepSpeechTransformer(nn.Module):
 
         self.transformers = nn.Sequential(
             SelfAttention(8, 1312),
+            # SelfAttention(8, 1312),
             SelfAttention(8, 1312),
             SelfAttention(8, 1312),
             SelfAttention(8, 1312)

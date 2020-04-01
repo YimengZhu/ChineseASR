@@ -1,7 +1,7 @@
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.nn.utils.rnn import pack_padded_sequence, pad_packed_sequence
-from transformer import SelfAttention
+from transformer import SelfAttention, PositionEncoding
 from pdb import set_trace as bp
 
 
@@ -56,17 +56,17 @@ class DeepSpeech(nn.Module):
         )
 
         self.rnns = nn.Sequential(
-            BatchRNN(1312, rnn_hiden, batch_norm=False),
-            BatchRNN(rnn_hiden, rnn_hiden),
-            BatchRNN(rnn_hiden, rnn_hiden),
-            BatchRNN(rnn_hiden, rnn_hiden),
-            BatchRNN(rnn_hiden, rnn_hiden),
-            BatchRNN(rnn_hiden, rnn_hiden)
+            BatchRNN(1312, rnn_hidden, batch_norm=False),
+            BatchRNN(rnn_hidden, rnn_hidden),
+            BatchRNN(rnn_hidden, rnn_hidden),
+            BatchRNN(rnn_hidden, rnn_hidden),
+            BatchRNN(rnn_hidden, rnn_hidden),
+            BatchRNN(rnn_hidden, rnn_hidden)
         )
 
         self.fc = nn.Sequential(
-            nn.BatchNorm1d(rnn_hiden),
-            nn.Linear(rnn_hiden, num_char, bias=False)
+            nn.BatchNorm1d(rnn_hidden),
+            nn.Linear(rnn_hidden, num_char, bias=False)
         )
 
     def forward(self, x, x_lengths):
@@ -115,30 +115,34 @@ class BatchRNN(nn.Module):
         return x
 
 class DeepSpeechTransformer(nn.Module):
-    def __init__(self, num_char):
+    def __init__(self, num_char, num_header=8):
         super(DeepSpeechTransformer, self).__init__()
 
         self.cnns = nn.Sequential(
-            nn.Conv2d(1, 32, kernel_size=(41, 11), stride=(2, 2),padding=(20, 5)),
-            nn.BatchNorm2d(32),
+            nn.Conv2d(1, 16, kernel_size=(41, 11), stride=(2, 2),padding=(20, 5)),
+            nn.BatchNorm2d(16),
             nn.Hardtanh(0, 20, inplace=True),
 
-            nn.Conv2d(32, 32, kernel_size=(21, 11), stride=(2, 1),padding=(10, 5)),
-            nn.BatchNorm2d(32),
+            nn.Conv2d(16, 16, kernel_size=(21, 11), stride=(2, 1),padding=(10, 5)),
+            nn.BatchNorm2d(16),
             nn.Hardtanh(0, 20, inplace=True)
         )
 
+        hidden_dim = 656
+
         self.transformers = nn.Sequential(
-            SelfAttention(8, 1312),
-            # SelfAttention(8, 1312),
-            SelfAttention(8, 1312),
-            SelfAttention(8, 1312),
-            SelfAttention(8, 1312)
+            SelfAttention(num_header, hidden_dim),
+            SelfAttention(num_header, hidden_dim),
+            SelfAttention(num_header, hidden_dim),
+            SelfAttention(num_header, hidden_dim),
+            SelfAttention(num_header, hidden_dim),
+            SelfAttention(num_header, hidden_dim),
+            SelfAttention(num_header, hidden_dim)
         )
 
         self.fc = nn.Sequential(
-            nn.BatchNorm1d(1312),
-            nn.Linear(1312, num_char, bias=False)
+            nn.BatchNorm1d(hidden_dim),
+            nn.Linear(hidden_dim, num_char, bias=False)
         )
 
     def forward(self, x, x_lengths):
@@ -156,6 +160,39 @@ class DeepSpeechTransformer(nn.Module):
         x = self.transformers(x)
         x = x.transpose(0, 1)
         # x.shape = T * N * D
+
+        t, n = x.size(0), x.size(1)
+        x = x.contiguous().view(t * n, -1)
+        x = self.fc(x)
+        x = x.view(t, n, -1)
+
+        x = F.log_softmax(x, dim=-1)
+        return x, x_lengths
+
+
+class DeepTransformer(nn.Module):
+    def __init__(self, num_char, input_dim=40, num_layer=10, num_header=8, hidden_dim=512):
+        super(DeepTransformer, self).__init__()
+        self.pos_enc = PositionEncoding()
+        self.embedding = nn.Linear(input_dim * 2, hidden_dim)
+        self.atts = nn.ModuleList([
+            SelfAttention(num_header, hidden_dim) for _ in range(num_layer)
+        ])
+
+        self.fc = nn.Sequential(
+            nn.BatchNorm1d(hidden_dim),
+            nn.Linear(hidden_dim, num_char, bias=False)
+        )
+
+    def forward(self, x, x_lengths):
+        x = self.pos_enc(x)
+
+        x = self.embedding(x)
+
+        for att_layer in self.atts:
+            x = att_layer(x)
+
+        x = x.transpose(0, 1) # x.shape = T * N * D
 
         t, n = x.size(0), x.size(1)
         x = x.contiguous().view(t * n, -1)

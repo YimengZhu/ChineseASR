@@ -5,7 +5,7 @@ import torch
 import numpy as np
 import argparse
 
-from model import DeepSpeech, DeepSpeechTransformer
+from model import DeepSpeech, DeepSpeechTransformer, DeepTransformer
 from data_loader import SpeechDataset, SpeechDataloader
 from utils import train_log
 from pdb import set_trace as bp
@@ -20,10 +20,7 @@ def set_deterministic(seed=123456):
     np.random.seed(args.seed)
     random.seed(args.seed)
 
-def train(model, epochs=10):
-
-    train_dataset = SpeechDataset('train.csv')
-    train_loader = SpeechDataloader(train_dataset, batch_size=8)
+def train(model, train_loader, epochs=10):
 
 
     optimizer = torch.optim.SGD(model.parameters(), lr=0.0001)
@@ -35,6 +32,7 @@ def train(model, epochs=10):
     for epoch in range(epochs):
         for i, data in enumerate(train_loader):
             feature, label, spect_lengths, transcript_lengths = data
+            bp()
             predict, pred_lengths = model(feature.cuda(), spect_lengths.cuda())
             predict = predict.float().cpu()
             loss = criterion(predict, label, pred_lengths.cpu(), transcript_lengths)
@@ -52,7 +50,8 @@ def train(model, epochs=10):
           # if i / 1000 == 0:
                 # writer.add_scalar('training loss', loss, epoch * len(train_loader) + i)
 
-        save_path = os.path.join(os.getcwd(), 'checkpoints', 'model{}.pt'.format(epoch))
+        save_path = os.path.join(os.getcwd(),
+                                 'checkpoints_{}'.format(type(model).__name__), 'model{}.pt'.format(epoch))
         torch.save(model.state_dict(), save_path)
 
 
@@ -63,13 +62,24 @@ if __name__ == '__main__':
         labels = str(''.join(json.load(label_file)))
 
     if args.model == 'DeepSpeech':
-        model = DeepSpeech(600, len(labels)).cuda()
-    else:
+        model = DeepSpeech(520, len(labels)).cuda()
+        train_dataset = SpeechDataset('train.csv')
+        train_loader = SpeechDataloader(train_dataset, batch_size=8)
+
+    elif args.model == 'DeepSpeechTransformer':
         model = DeepSpeechTransformer(len(labels)).cuda()
+        train_dataset = SpeechDataset('train.csv')
+        train_loader = SpeechDataloader(train_dataset, batch_size=8)
+
+    elif args.model == 'Transformer':
+        model = DeepTransformer(len(labels)).cuda()
+        train_dataset = SpeechDataset('train.csv', feature='mfcc')
+        train_loader = SpeechDataloader(train_dataset, batch_size=8)
+
 
     print(model, flush=True)
     print('Number of trained parameter: {}'.
           format(sum(p.numel() for p in model.parameters() if
                      p.requires_grad)), flush=True)
 
-    train(model)
+    train(model, train_loader)

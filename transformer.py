@@ -2,6 +2,7 @@ import math
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from pdb import set_trace as bp
 
 class MultiHeadAttention(nn.Module):
     def __init__(self, num_header, dim_hidden):
@@ -65,4 +66,21 @@ class SelfAttention(nn.Module):
 
         return x
 
+class PositionEncoding(nn.Module):
+    def __init__(self, d_model=40, max_len=1000):
+        super(PositionEncoding, self).__init__()
+        pe = torch.zeros(max_len, d_model, requires_grad=False)
+        position = torch.arange(0, max_len).unsqueeze(1).float()
+        div_term = torch.exp(torch.arange(0, d_model, 2).float() * -(math.log(10000.0) / d_model))
+        pe[:, 0::2] = torch.sin(position * div_term)
+        pe[:, 1::2] = torch.cos(position * div_term)
+        pe = pe.unsqueeze(0)
+        self.register_buffer('pe', pe)
 
+    def forward(self, x):
+        x.squeeze(0)
+        batch_size, length = x.size(0), x.size(1)
+        pos_enc = self.pe[:, :length]
+        pos_enc = pos_enc.repeat(batch_size, 1, 1)
+        x_pos_enc = torch.cat((x, pos_enc), 2)
+        return x_pos_enc

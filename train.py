@@ -32,7 +32,6 @@ def train(model, train_loader, epochs=10):
     for epoch in range(epochs):
         for i, data in enumerate(train_loader):
             feature, label, spect_lengths, transcript_lengths = data
-            bp()
             predict, pred_lengths = model(feature.cuda(), spect_lengths.cuda())
             predict = predict.float().cpu()
             loss = criterion(predict, label, pred_lengths.cpu(), transcript_lengths)

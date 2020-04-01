@@ -4,17 +4,23 @@ from scipy.io.wavfile import read
 import librosa
 
 import torch
+import torchaudio
 from torch.utils.data import Dataset, DataLoader
 import pandas
 
 class SpeechDataset(Dataset):
 
-    def __init__(self, csv_path, lexicon_path='lexicon.json', sample_rate=16000,
-                 window='hamming', window_size=.02, stride_size=.01):
-        self.samples = pandas.read_csv(csv_path, header=None)
+    def __init__(self, csv_path, feature='spect', lexicon_path='lexicon.json', sample_rate=16000, window='hamming', window_size=.02, stride_size=.01):
+        if feature in ['mfcc', 'spect']:
+            self.feature = feature
+        else:
+            raise Error('Invalid feature type')
+
         with open(lexicon_path) as file:
             lexicon = str(''.join(json.load(file)))
         self.label = dict([(lexicon[i], i) for i in range(len(lexicon))])
+
+        self.samples = pandas.read_csv(csv_path, header=None)
 
         self.sample_rate = sample_rate
         self.window = window
@@ -36,26 +42,19 @@ class SpeechDataset(Dataset):
         return feature, label
 
     def __parse_wav(self, wav_path):
-        sample_rate, sound = read(wav_path)
-        sound = sound.astype('float32') / 32767
-        if len(sound.shape) > 1:
-            sound = sound.squeeze() if sound.shape[1] == 1 else sound.mean(axis=1)
+        waveform, sample_rate = torchaudio.load(wav_path)
 
-        window_length = int(self.sample_rate * self.window_size)
-        stride_length = int(self.sample_rate * self.stride_size)
+        if self.feature == 'spect':
+            n_fft = int(self.window_size * self.sample_rate)
+            feature = torchaudio.transforms.Spectrogram(n_fft=n_fft)(waveform)
+            feature = feature.abs().log1p()
+        if self.feature == 'mfcc':
+            feature = torchaudio.transforms.MelSpectrogram()(waveform)
 
-        stft = librosa.stft(sound, n_fft=window_length,
-                            hop_length=stride_length, win_length=window_length,
-                           window = self.window)
-
-        magnitude, phase = librosa.magphase(stft)
-
-        spect = torch.FloatTensor(np.log1p(magnitude))
-
-        spect.add_(-spect.mean())
-        spect.div_(spect.std())
-        return spect
-
+        feature = feature.squeeze(0)
+        feature.add_(-feature.mean())
+        feature.div_(feature.std())
+        return feature
 
     def __parse_transcript(self, transcript_path):
         with open(transcript_path, 'r', encoding='utf8') as transcript_file:

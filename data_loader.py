@@ -48,12 +48,12 @@ class SpeechDataset(Dataset):
             n_fft = int(self.window_size * self.sample_rate)
             feature = torchaudio.transforms.Spectrogram(n_fft=n_fft)(waveform)
             feature = feature.abs().log1p()
+            feature.add_(-feature.mean())
+            feature.div_(feature.std())
         if self.feature == 'mfcc':
-            feature = torchaudio.transforms.MelSpectrogram()(waveform)
+            feature = torchaudio.transforms.MFCC()(waveform)
 
         feature = feature.squeeze(0)
-        feature.add_(-feature.mean())
-        feature.div_(feature.std())
         return feature
 
     def __parse_transcript(self, transcript_path):

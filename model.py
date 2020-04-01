@@ -185,6 +185,7 @@ class DeepTransformer(nn.Module):
         )
 
     def forward(self, x, x_lengths):
+        x = x.squeeze(1).transpose(1, 2)
         x = self.pos_enc(x)
 
         x = self.embedding(x)

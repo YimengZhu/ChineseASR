@@ -78,8 +78,6 @@ class PositionEncoding(nn.Module):
         self.register_buffer('pe', pe)
 
     def forward(self, x):
-        x.squeeze(0)
-        bp()
         batch_size, length = x.size(0), x.size(1)
         pos_enc = self.pe[:, :length]
         pos_enc = pos_enc.repeat(batch_size, 1, 1)

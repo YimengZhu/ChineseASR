@@ -63,17 +63,14 @@ if __name__ == '__main__':
     if args.model == 'DeepSpeech':
         model = DeepSpeech(520, len(labels)).cuda()
         train_dataset = SpeechDataset('train.csv')
-        train_loader = SpeechDataloader(train_dataset, batch_size=8)
 
     elif args.model == 'DeepSpeechTransformer':
         model = DeepSpeechTransformer(len(labels)).cuda()
         train_dataset = SpeechDataset('train.csv')
-        train_loader = SpeechDataloader(train_dataset, batch_size=8)
 
     elif args.model == 'Transformer':
         model = DeepTransformer(len(labels)).cuda()
         train_dataset = SpeechDataset('train.csv', feature='mfcc')
-        train_loader = SpeechDataloader(train_dataset, batch_size=8)
 
 
     print(model, flush=True)
@@ -81,4 +78,5 @@ if __name__ == '__main__':
           format(sum(p.numel() for p in model.parameters() if
                      p.requires_grad)), flush=True)
 
+    train_loader = SpeechDataloader(train_dataset, batch_size=8)
     train(model, train_loader)

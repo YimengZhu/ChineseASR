@@ -60,7 +60,6 @@ class DeepSpeech(nn.Module):
             BatchRNN(rnn_hidden, rnn_hidden),
             BatchRNN(rnn_hidden, rnn_hidden),
             BatchRNN(rnn_hidden, rnn_hidden),
-            BatchRNN(rnn_hidden, rnn_hidden),
             BatchRNN(rnn_hidden, rnn_hidden)
         )
 
@@ -97,7 +96,7 @@ class BatchRNN(nn.Module):
     def __init__(self, input_size, hidden_size, batch_norm=True):
         super(BatchRNN, self).__init__()
         self.norm = nn.BatchNorm1d(input_size) if batch_norm else None
-        self.lstm = nn.LSTM(input_size, hidden_size, bidirectional=True)
+        self.lstm = nn.GRU(input_size, hidden_size, bidirectional=True)
 
     def forward(self, x, x_lengths):
         if self.norm is not None:
@@ -128,7 +127,9 @@ class DeepSpeechTransformer(nn.Module):
             nn.Hardtanh(0, 20, inplace=True)
         )
 
-        hidden_dim = 656
+        hidden_dim = 656 + 40
+
+        self.pos_enc = PositionEncoding()
 
         self.transformers = nn.Sequential(
             SelfAttention(num_header, hidden_dim),
@@ -157,6 +158,7 @@ class DeepSpeechTransformer(nn.Module):
         x = x.view(sizes[0], sizes[1] * sizes[2], sizes[3]).transpose(1, 2)
 
         # x.shape = N * T * D
+        x = self.pos_enc(x)
         x = self.transformers(x)
         x = x.transpose(0, 1)
         # x.shape = T * N * D
@@ -171,10 +173,14 @@ class DeepSpeechTransformer(nn.Module):
 
 
 class DeepTransformer(nn.Module):
-    def __init__(self, num_char, input_dim=40, num_layer=10, num_header=8, hidden_dim=512):
+    def __init__(self, num_char, input_dim=40, downsample=4, num_layer=10, num_header=8, hidden_dim=512):
         super(DeepTransformer, self).__init__()
+        self.downsample = downsample
+
         self.pos_enc = PositionEncoding()
-        self.embedding = nn.Linear(input_dim * 2, hidden_dim)
+
+        self.embedding = nn.Linear(input_dim * self.downsample + 40, hidden_dim)
+
         self.atts = nn.ModuleList([
             SelfAttention(num_header, hidden_dim) for _ in range(num_layer)
         ])
@@ -185,7 +191,14 @@ class DeepTransformer(nn.Module):
         )
 
     def forward(self, x, x_lengths):
+        # x.shape = N * 1 * D * T
         x = x.squeeze(1).transpose(1, 2)
+
+        n, t, d = x.size(0), x.size(1), x.size(2)
+        padding = torch.FloatTensor(n, self.downsample - t % self.downsampl, d).zero_()
+        x = torch.cat((x, padding), 1)
+        x = x.reshape(n, x.size(1) / self.downsample, x.size(2) * self.downsample)
+
         x = self.pos_enc(x)
 
         x = self.embedding(x)

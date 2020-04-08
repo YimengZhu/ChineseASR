@@ -1,12 +1,12 @@
 import json
-import numpy as np
 from scipy.io.wavfile import read
 import librosa
-
+import numpy as np
 import torch
 import torchaudio
 from torch.utils.data import Dataset, DataLoader
 import pandas
+from pdb import set_trace as bp
 
 class SpeechDataset(Dataset):
 
@@ -45,15 +45,29 @@ class SpeechDataset(Dataset):
         waveform, sample_rate = torchaudio.load(wav_path)
 
         if self.feature == 'spect':
-            n_fft = int(self.window_size * self.sample_rate)
-            feature = torchaudio.transforms.Spectrogram(n_fft=n_fft)(waveform)
-            feature = feature.abs().log1p()
+            sample_rate, sound = read(wav_path)
+            sound = sound.astype('float32') / 32767
+            if len(sound.shape) > 1:
+                sound = sound.squeeze() if sound.shape[1] == 1 else sound.mean(axis=1)
+            D = librosa.stft(sound,
+                             n_fft=int(self.sample_rate * self.window_size),
+                             hop_length=int(self.sample_rate * self.stride_size),
+                             win_length=int(self.sample_rate * self.window_size),
+                             window=self.window)
+            feature, phase = librosa.magphase(D)
+            feature = torch.FloatTensor(np.log1p(feature))
             feature.add_(-feature.mean())
             feature.div_(feature.std())
+            # n_fft = int(self.window_size * self.sample_rate)
+            # feature = torchaudio.transforms.Spectrogram(n_fft=n_fft)(waveform)
+            # feature = feature.abs().log1p()
+            # feature = (feature -  feature.mean()) / feature.std()
+            # feature = feature.squeeze(0)
+            # bp()
         if self.feature == 'mfcc':
             feature = torchaudio.transforms.MFCC()(waveform)
+            feature = feature.squeeze(0)
 
-        feature = feature.squeeze(0)
         return feature
 
     def __parse_transcript(self, transcript_path):

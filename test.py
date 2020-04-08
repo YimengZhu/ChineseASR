@@ -11,7 +11,6 @@ from pdb import set_trace as bp
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--model', default='DeepSpeech')
-parser.add_argument('--model_folder', default='checkpoints')
 
 def evaluate(model, decoder):
 
@@ -34,11 +33,11 @@ def evaluate(model, decoder):
         for j, true_transcript in enumerate(label_str):
             pred_transcript = predict_str[j]
             cer += distance(pred_transcript, true_transcript)
-            num_char += max(len(true_transcript), len(pred_transcript))
+            num_char += len(true_transcript)
 
     avg_cer = cer / num_char
-    print('number of test samples: {}, number of characters: {}, everage cer{}.'.
-          format(len(test_dataset), num_char, avg_cer))
+    print('number of test samples: {}, number of characters: {}, everage cer: {}.'.
+          format(len(test_dataset), num_char, avg_cer), flush=True)
 
     return avg_cer
 
@@ -52,7 +51,7 @@ if __name__ == '__main__':
         labels = str(''.join(json.load(label_file)))
 
     if args.model == 'DeepSpeech':
-        model = DeepSpeech(len(labels)).cuda()
+        model = DeepSpeech(800, len(labels)).cuda()
     elif args.model == 'DeepSpeechTransformer':
         model = DeepSpeechTransformer(len(labels)).cuda()
 
@@ -61,8 +60,8 @@ if __name__ == '__main__':
           format(sum(p.numel() for p in model.parameters() if
                      p.requires_grad)), flush=True)
 
-    for i in range(4, 5):
-        model_path = args.model_folder + '/model{}.pt'.format(i)
+    for i in range(10):
+        model_path = 'checkpoints_{}'.format(args.model) + '/model{}.pt'.format(i)
         model.load_state_dict(torch.load(model_path))
         # model.eval()
         decoder = GreedyDecoder()

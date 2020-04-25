@@ -45,33 +45,35 @@ class SelfAttention(nn.Module):
 
         self.multiHeadAttention = MultiHeadAttention(num_header, dim_hidden)
 
-        self.norm = nn.BatchNorm1d(dim_hidden)
+        self.norm = nn.LayerNorm(dim_hidden)
 
-        self.feedforward = nn.Sequential(
-            nn.Linear(dim_hidden, dim_ff),
-            nn.ReLU(),
-            nn.Linear(dim_ff, dim_hidden)
-        )
+        self.fc1 = nn.Linear(dim_hidden, dim_ff)
+        nn.init.xavier_uniform_(self.fc1.weight)
+
+        self.relu = nn.ReLU()
+
+        self.fc2 = nn.Linear(dim_ff, dim_hidden)
+        nn.init.xavier_uniform_(self.fc2.weight)
 
     def forward(self, x):
         att = self.multiHeadAttention(x, x, x)
         x = x + att if self.residual else att
 
-        x = self.norm(x.transpose(1, 2)).transpose(1, 2)
+        x = self.norm(x)
 
-        ff = self.feedforward(x)
+        ff = self.fc2(self.relu(self.fc1(x)))
         x = x + ff if self.residual else ff
 
-        x = self.norm(x.transpose(1, 2)).transpose(1, 2)
+        x = self.norm(x)
 
         return x
 
 class PositionEncoding(nn.Module):
-    def __init__(self, d_model=40, max_len=1000):
+    def __init__(self, pos_dim=40, max_len=1500):
         super(PositionEncoding, self).__init__()
-        pe = torch.zeros(max_len, d_model, requires_grad=False)
+        pe = torch.zeros(max_len, pos_dim, requires_grad=False)
         position = torch.arange(0, max_len).unsqueeze(1).float()
-        div_term = torch.exp(torch.arange(0, d_model, 2).float() * -(math.log(10000.0) / d_model))
+        div_term = torch.exp(torch.arange(0, pos_dim, 2).float() * -(math.log(10000.0) / pos_dim))
         pe[:, 0::2] = torch.sin(position * div_term)
         pe[:, 1::2] = torch.cos(position * div_term)
         pe = pe.unsqueeze(0)
@@ -82,4 +84,7 @@ class PositionEncoding(nn.Module):
         pos_enc = self.pe[:, :length]
         pos_enc = pos_enc.repeat(batch_size, 1, 1)
         x_pos_enc = torch.cat((x, pos_enc), 2)
+        # pos_enc = self.pe[:, :length]
+        # pos_enc = pos_enc.repeat(batch_size, 1, 1)
+        # x_pos_enc = x + pos_enc
         return x_pos_enc

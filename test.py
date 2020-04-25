@@ -2,9 +2,9 @@ import argparse
 import json
 from tqdm import tqdm
 from Levenshtein import distance
-from data_loader import SpeechDataset, SpeechDataloader
+from data_loader import SpeechDataset, SpectDataloader, MFCCDataloader
 from decoder import GreedyDecoder
-from model import DeepSpeech, DeepSpeechTransformer
+from model import DeepSpeech, DeepSpeechTransformer, DeepTransformer
 import torch
 # from torch.utils.tensorboard import SummaryWriter
 from pdb import set_trace as bp
@@ -12,10 +12,8 @@ from pdb import set_trace as bp
 parser = argparse.ArgumentParser()
 parser.add_argument('--model', default='DeepSpeech')
 
-def evaluate(model, decoder):
+def evaluate(model, test_loader, decoder):
 
-    test_dataset = SpeechDataset('test.csv')
-    test_loader = SpeechDataloader(test_dataset, batch_size=8)
 
     cer, num_char = 0, 0
     for data in tqdm(test_loader, total=len(test_loader)):
@@ -52,18 +50,26 @@ if __name__ == '__main__':
 
     if args.model == 'DeepSpeech':
         model = DeepSpeech(800, len(labels)).cuda()
+        test_dataset = SpeechDataset('uf.csv')
+        test_loader = SpectDataloader(test_dataset, batch_size=8)
     elif args.model == 'DeepSpeechTransformer':
         model = DeepSpeechTransformer(len(labels)).cuda()
+        test_dataset = SpeechDataset('test.csv')
+        test_loader = SpectDataloader(test_dataset, batch_size=8)
+    elif args.model == 'DeepTransformer':
+        model = DeepTransformer(len(labels)).cuda()
+        test_dataset = SpeechDataset('test.csv')
+        test_loader = MFCCDataloader(test_dataset, batch_size=2)
 
     # print(model, flush=True)
     print('Number of trained parameter: {}'.
           format(sum(p.numel() for p in model.parameters() if
                      p.requires_grad)), flush=True)
 
-    for i in range(10):
+    for i in range(30):
         model_path = 'checkpoints_{}'.format(args.model) + '/model{}.pt'.format(i)
         model.load_state_dict(torch.load(model_path))
         # model.eval()
         decoder = GreedyDecoder()
-        cer = evaluate(model, decoder)
+        cer = evaluate(model, test_loader, decoder)
         # writer.add_scalar('acc', cer, i)

@@ -1,31 +1,24 @@
 import json
-from scipy.io.wavfile import read
-import librosa
 import numpy as np
 import torch
-import torchaudio
+from scipy.io.wavfile import read
+import librosa
+from data_aug import TimeStretch, SpectAugment
 from torch.utils.data import Dataset, DataLoader
 import pandas
 from pdb import set_trace as bp
 
 class SpeechDataset(Dataset):
 
-    def __init__(self, csv_path, feature='spect', lexicon_path='lexicon.json', sample_rate=16000, window='hamming', window_size=.02, stride_size=.01):
-        if feature in ['mfcc', 'spect']:
-            self.feature = feature
-        else:
-            raise Error('Invalid feature type')
+    def __init__(self, csv_path, lexicon_path='lexicon.json', augment=False):
 
         with open(lexicon_path) as file:
             lexicon = str(''.join(json.load(file)))
         self.label = dict([(lexicon[i], i) for i in range(len(lexicon))])
 
         self.samples = pandas.read_csv(csv_path, header=None)
-
-        self.sample_rate = sample_rate
-        self.window = window
-        self.window_size = window_size
-        self.stride_size = stride_size
+        self.stretch = TimeStretch(100) if augment else None
+        self.spectAug = SpectAugment() if augment else None
 
     def __len__(self):
         return len(self.samples)
@@ -42,33 +35,25 @@ class SpeechDataset(Dataset):
         return feature, label
 
     def __parse_wav(self, wav_path):
-        waveform, sample_rate = torchaudio.load(wav_path)
+        sample_rate, sound = read(wav_path)
+        sound = sound.astype('float32') / 32767
+        if len(sound.shape) > 1:
+            sound = sound.squeeze() if sound.shape[1] == 1 else sound.mean(axis=1)
 
-        if self.feature == 'spect':
-            sample_rate, sound = read(wav_path)
-            sound = sound.astype('float32') / 32767
-            if len(sound.shape) > 1:
-                sound = sound.squeeze() if sound.shape[1] == 1 else sound.mean(axis=1)
-            D = librosa.stft(sound,
-                             n_fft=int(self.sample_rate * self.window_size),
-                             hop_length=int(self.sample_rate * self.stride_size),
-                             win_length=int(self.sample_rate * self.window_size),
-                             window=self.window)
-            feature, phase = librosa.magphase(D)
-            feature = torch.FloatTensor(np.log1p(feature))
-            feature.add_(-feature.mean())
-            feature.div_(feature.std())
-            # n_fft = int(self.window_size * self.sample_rate)
-            # feature = torchaudio.transforms.Spectrogram(n_fft=n_fft)(waveform)
-            # feature = feature.abs().log1p()
-            # feature = (feature -  feature.mean()) / feature.std()
-            # feature = feature.squeeze(0)
-            # bp()
-        if self.feature == 'mfcc':
-            feature = torchaudio.transforms.MFCC()(waveform)
-            feature = feature.squeeze(0)
+        feature = librosa.feature.melspectrogram(y=sound, sr=sample_rate,
+                                                 n_fft=512, hop_length=250,
+                                                 win_length=400,
+                                                 window='hamming',
+                                                 n_mels=40)
+        feature = (feature - feature.mean()) / feature.std()
+        if self.stretch is not None:
+            feature = self.stretch(feature)
+
+        if self.spectAug is not None:
+           feature = self.spectAug(feature)
 
         return feature
+
 
     def __parse_transcript(self, transcript_path):
         with open(transcript_path, 'r', encoding='utf8') as transcript_file:
@@ -77,31 +62,31 @@ class SpeechDataset(Dataset):
         transcript = list(filter(None, transcript))
         return transcript
 
-def batch_collate(batch):
-    # batch.shape = N * (D * T, transcript)
-    batch = sorted(batch, key=lambda sample:sample[0].size(1), reverse=True)
-    longest_sample = max(batch, key=lambda sample:sample[0].size(1))[0]
-
-    spect_dim = longest_sample.size(0)
-    max_length = longest_sample.size(1)
+def collate(batch):
+    # batch.shape = N * (D * T, Transcript)
+    batch = sorted(batch, key=lambda sample:sample[0].shape[1], reverse=True)
+    longest_sample = max(batch, key=lambda sample:sample[0].shape[1])[0]
+    spect_dim, max_length = longest_sample.shape
     batch_size = len(batch)
 
-    batch_spect = torch.zeros(batch_size, 1, spect_dim, max_length)
+    batch_spect = torch.zeros(batch_size, max_length, spect_dim)
     batch_transcript = []
     spect_lengths = torch.IntTensor(batch_size)
     transcript_lengths = torch.IntTensor(batch_size)
 
     for i in range(batch_size):
         spect, transcript = batch[i]
-        batch_spect[i][0].narrow(1, 0, spect.size(1)).copy_(spect)
+        spect = torch.FloatTensor(spect)
+        batch_spect[i].narrow(0, 0, spect.size(1)).copy_(spect.transpose(0, 1))
         batch_transcript.extend(transcript)
         spect_lengths[i] = spect.size(1)
         transcript_lengths[i] = len(transcript)
     batch_transcript = torch.IntTensor(batch_transcript)
-    return batch_spect, batch_transcript, spect_lengths, transcript_lengths 
-
+    return batch_spect, batch_transcript, spect_lengths, transcript_lengths
 
 class SpeechDataloader(DataLoader):
     def __init__(self, *args, **kwargs):
         super(SpeechDataloader, self).__init__(*args, **kwargs)
-        self.collate_fn = batch_collate
+        self.collate_fn = collate
+
+

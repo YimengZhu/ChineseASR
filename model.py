@@ -1,3 +1,4 @@
+import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.nn.utils.rnn import pack_padded_sequence, pad_packed_sequence
@@ -138,6 +139,8 @@ class DeepSpeechTransformer(nn.Module):
             SelfAttention(num_header, hidden_dim),
             SelfAttention(num_header, hidden_dim),
             SelfAttention(num_header, hidden_dim),
+            SelfAttention(num_header, hidden_dim),
+            SelfAttention(num_header, hidden_dim),
             SelfAttention(num_header, hidden_dim)
         )
 
@@ -173,13 +176,14 @@ class DeepSpeechTransformer(nn.Module):
 
 
 class DeepTransformer(nn.Module):
-    def __init__(self, num_char, input_dim=40, downsample=4, num_layer=10, num_header=8, hidden_dim=512):
+    def __init__(self, num_char, input_dim=40, downsample=1, pos_dim=40, num_layer=10, num_header=8, hidden_dim=512):
         super(DeepTransformer, self).__init__()
         self.downsample = downsample
 
-        self.pos_enc = PositionEncoding()
+        self.embedding = nn.Linear(input_dim*self.downsample,
+                                   hidden_dim-pos_dim)
 
-        self.embedding = nn.Linear(input_dim * self.downsample + 40, hidden_dim)
+        self.pos_enc = PositionEncoding(pos_dim)
 
         self.atts = nn.ModuleList([
             SelfAttention(num_header, hidden_dim) for _ in range(num_layer)
@@ -191,17 +195,10 @@ class DeepTransformer(nn.Module):
         )
 
     def forward(self, x, x_lengths):
-        # x.shape = N * 1 * D * T
-        x = x.squeeze(1).transpose(1, 2)
-
-        n, t, d = x.size(0), x.size(1), x.size(2)
-        padding = torch.FloatTensor(n, self.downsample - t % self.downsampl, d).zero_()
-        x = torch.cat((x, padding), 1)
-        x = x.reshape(n, x.size(1) / self.downsample, x.size(2) * self.downsample)
-
-        x = self.pos_enc(x)
 
         x = self.embedding(x)
+
+        x = self.pos_enc(x)
 
         for att_layer in self.atts:
             x = att_layer(x)
@@ -214,4 +211,4 @@ class DeepTransformer(nn.Module):
         x = x.view(t, n, -1)
 
         x = F.log_softmax(x, dim=-1)
-        return x, x_lengths
+        return x, x_lengths / self.downsample

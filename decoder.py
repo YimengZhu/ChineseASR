@@ -44,3 +44,34 @@ class GreedyDecoder(Decoder):
         decoded_transcript = self.label2string(prob_list)
         return decoded_transcript
 
+
+class BeamDecoder(Decoder):
+    def __init__(self):
+        super(BeamDecoder, self).__init__()
+        try:
+            from ctcdecode import CTCBeamDecoder
+            lm_path = 'zh_giga.no_cna_cmn.prune01244.klm'
+            alpha, beta, cutoff_top_n, cutoff_prob = 0, 0, 40, 1.0
+            beam_width, num_proc,blank_dix = 100, 4, 0
+            self.decoder = CTCBeamDecoder(self.labels, lm_path, alpha, beta, cutoff_top_n, cutoff_prob, beam_width,num_proc, blank_idx)
+        except ImportError:
+            raise ImportError('please install https://github.com/parlance/ctcdecode')
+
+    def label2string(self, out, seq_len):
+        result = []
+        for b, batch in enumerate(out):
+            utterances = []
+            for p, utt in enumerate(batch):
+                size = seq_len[b][p]
+                if size > 0:
+                    transcript = ''.join(map(lambda x: self.int2char[x.item()], utt[0:size]))
+                else:
+                    transcript = ''
+                utterances.append(transcript)
+            results.append(utterances)
+        return results
+
+    def decode(self, probs, prob_lengths):
+        out, scores, offsets, seq_lens = self._decoder.decode(probs, sizes)
+        decoded_transcript = self.label2string(out, seq_lens)
+        return decoded_transcript

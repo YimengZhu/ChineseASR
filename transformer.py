@@ -39,9 +39,11 @@ class MultiHeadAttention(nn.Module):
         return output
 
 class SelfAttention(nn.Module):
-    def __init__(self, num_header, dim_hidden, dim_ff=2048, residual=True):
+    def __init__(self, num_header, dim_hidden, dim_ff=2048, residual=True,
+                 drop_layer=0.0):
         super(SelfAttention, self).__init__()
         self.residual = residual
+        self.drop_layer = drop_layer
 
         self.multiHeadAttention = MultiHeadAttention(num_header, dim_hidden)
 
@@ -56,12 +58,19 @@ class SelfAttention(nn.Module):
         nn.init.xavier_uniform_(self.fc2.weight)
 
     def forward(self, x):
+        # drop_layer = (torch.rand(1)[0].item() < self.drop_layer)
+        # if not drop_layer or not self.training:
+
         att = self.multiHeadAttention(x, x, x)
-        x = x + att if self.residual else att
+           #  if self.training: att = att / (1 - self.drop_layer)
+
+        ix = x + att if self.residual else att
 
         x = self.norm(x)
 
         ff = self.fc2(self.relu(self.fc1(x)))
+        #    if self.training: ff = ff / (1 - self.drop_layer)
+
         x = x + ff if self.residual else ff
 
         x = self.norm(x)

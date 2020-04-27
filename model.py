@@ -57,7 +57,7 @@ class DeepSpeech(nn.Module):
         )
 
         self.rnns = nn.Sequential(
-            BatchRNN(1312, rnn_hidden, batch_norm=False),
+            BatchRNN(320, rnn_hidden, batch_norm=False),
             BatchRNN(rnn_hidden, rnn_hidden),
             BatchRNN(rnn_hidden, rnn_hidden),
             BatchRNN(rnn_hidden, rnn_hidden),
@@ -70,6 +70,7 @@ class DeepSpeech(nn.Module):
         )
 
     def forward(self, x, x_lengths):
+        x = x.unsqueeze(1).transpose(2,3)
         x = self.cnns(x)
 
         for m in self.cnns.modules():
@@ -115,7 +116,7 @@ class BatchRNN(nn.Module):
         return x
 
 class DeepSpeechTransformer(nn.Module):
-    def __init__(self, num_char, num_header=8):
+    def __init__(self, num_char, num_header=8, num_att_layer=8, drop_layer=0.0):
         super(DeepSpeechTransformer, self).__init__()
 
         self.cnns = nn.Sequential(
@@ -132,17 +133,11 @@ class DeepSpeechTransformer(nn.Module):
 
         self.pos_enc = PositionEncoding()
 
-        self.transformers = nn.Sequential(
-            SelfAttention(num_header, hidden_dim),
-            SelfAttention(num_header, hidden_dim),
-            SelfAttention(num_header, hidden_dim),
-            SelfAttention(num_header, hidden_dim),
-            SelfAttention(num_header, hidden_dim),
-            SelfAttention(num_header, hidden_dim),
-            SelfAttention(num_header, hidden_dim),
-            SelfAttention(num_header, hidden_dim),
-            SelfAttention(num_header, hidden_dim)
-        )
+        self.transformers = nn.ModuleList()
+        for l in range(num_layer):
+            drop_prob = (l + 1.0) / num_layer * drop_layer
+            tranformer = SelfAttention(num_header, hidden_dim, drop_layer=drop_prob)
+            self.att_layer.append(transformer)
 
         self.fc = nn.Sequential(
             nn.BatchNorm1d(hidden_dim),
@@ -176,18 +171,23 @@ class DeepSpeechTransformer(nn.Module):
 
 
 class DeepTransformer(nn.Module):
-    def __init__(self, num_char, input_dim=40, downsample=1, pos_dim=40, num_layer=10, num_header=8, hidden_dim=512):
+    def __init__(self, num_char, input_dim=40, downsample=1, pos_dim=40,
+                 num_layer=10, num_header=8, hidden_dim=512, drop_layer=0.0):
         super(DeepTransformer, self).__init__()
         self.downsample = downsample
 
-        self.embedding = nn.Linear(input_dim*self.downsample,
-                                   hidden_dim-pos_dim)
+        self.embedding = nn.Linear(input_dim*self.downsample, hidden_dim-pos_dim)
 
         self.pos_enc = PositionEncoding(pos_dim)
 
         self.atts = nn.ModuleList([
             SelfAttention(num_header, hidden_dim) for _ in range(num_layer)
         ])
+        # self.att_layer = nn.ModuleList()
+        # for l in range(num_layer):
+        #     drop_prob = (l + 1.0) / num_layer * drop_layer
+        #     transformer = SelfAttention(num_header, hidden_dim, drop_layer=drop_prob)
+        #     self.att_layer.append(transformer)
 
         self.fc = nn.Sequential(
             nn.BatchNorm1d(hidden_dim),

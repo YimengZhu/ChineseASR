@@ -1,8 +1,8 @@
 import torch
 
-class TransfomerOptimizer:
+class TransformerOptimizer:
     def __init__(self, optimizer, init_lr=2, warmup_steps=4000):
-        self.optimizer = optimzer
+        self.optimizer = optimizer
         self.init_lr = init_lr
         self.warmup_step = 4000
         self.step_num = 0
@@ -12,8 +12,8 @@ class TransfomerOptimizer:
 
     def step(self):
         self.step_num += 1
-        lr = self.init_lr * min(self.step_num ** (-0.5),
-                                self.step_num * (self.warmup_steps ** (-1.5)))
+        lr = self.init_lr * min(self.step_num**(-0.5),
+                                self.step_num*(self.warmup_step**(-1.5)))
 
         for param_group in self.optimizer.param_groups:
             param_group['lr'] = lr

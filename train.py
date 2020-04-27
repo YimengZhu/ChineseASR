@@ -8,8 +8,8 @@ import argparse
 
 from model import DeepSpeech, DeepSpeechTransformer, DeepTransformer
 from data_loader import SpeechDataset, SpeechDataloader
-from data_aug import TimeStretch, SpectAugment
 from utils import train_log
+from optimizer import TransformerOptimizer
 from pdb import set_trace as bp
 
 
@@ -26,8 +26,7 @@ def set_deterministic(seed=123456):
     random.seed(args.seed)
 
 
-def train(model, train_loader, epochs=30):
-    optimizer = torch.optim.SGD(model.parameters(), lr=0.0001)
+def train(model, train_loader, optimizer,  epochs=30):
     criterion = torch.nn.CTCLoss(reduction='sum', zero_infinity=True).cuda()
     # tbwriter = SummaryWriter('runs/{}'.format(type(model).__name__))
 
@@ -70,10 +69,17 @@ if __name__ == '__main__':
 
     if args.model == 'DeepSpeech':
         model = DeepSpeech(800, len(labels)).cuda()
+        optimizer = torch.optim.SGD(model.parameters(), lr=0.0001)
     elif args.model == 'DeepSpeechTransformer':
         model = DeepSpeechTransformer(len(labels)).cuda()
+        optimizer = TransformerOptimizer(
+            torch.optim.Adam(model.parameters(), betas=(0.9, 0.98), eps=1e-09)
+        )
     elif args.model == 'DeepTransformer':
         model = DeepTransformer(len(labels)).cuda()
+        optimizer = TransformerOptimizer(
+            torch.optim.Adam(model.parameters(), betas=(0.9, 0.98), eps=1e-09)
+        )
 
     if args.from_epoch != 0:
         model_path =  'checkpoints_{}/model{}.pt'.format(args.model, args.from_epoch - 1)
@@ -85,4 +91,4 @@ if __name__ == '__main__':
           format(sum(p.numel() for p in model.parameters() if
                      p.requires_grad)), flush=True)
 
-    train(model, train_loader)
+    train(model, train_loader, optimizer)

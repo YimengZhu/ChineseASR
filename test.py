@@ -13,9 +13,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument('--model', default='DeepSpeech')
 
 def evaluate(model, test_loader, decoder):
-
-
-    cer, num_char = 0, 0
+    cer, num_char = 0.0, 0
     for data in tqdm(test_loader, total=len(test_loader)):
         feature, label, spect_lengths, transcript_lengths = data
         split_label = []
@@ -34,9 +32,8 @@ def evaluate(model, test_loader, decoder):
             num_char += len(true_transcript)
 
     avg_cer = cer / num_char
-    print('number of test samples: {}, number of characters: {}, everage cer: {}.'.
-          format(len(test_dataset), num_char, avg_cer), flush=True)
-
+    # print('number of test samples: {}, number of characters: {}, everage cer: {}.'.
+    #      format(len(test_dataset), num_char, avg_cer), flush=True)
     return avg_cer
 
 
@@ -48,8 +45,6 @@ if __name__ == '__main__':
     with open('lexicon.json') as label_file:
         labels = str(''.join(json.load(label_file)))
 
-    test_dataset = SpeechDataset('uf.csv')
-    test_loader = SpeechDataloader(test_dataset, batch_size=8)
 
     if args.model == 'DeepSpeech':
         model = DeepSpeech(800, len(labels)).cuda()
@@ -63,10 +58,24 @@ if __name__ == '__main__':
           format(sum(p.numel() for p in model.parameters() if
                      p.requires_grad)), flush=True)
 
-    for i in range(15):
+    decoder = GreedyDecoder()
+
+    for i in range(29):
+        train_loader = SpeechDataloader(SpeechDataset('uf.csv'),
+                                        batch_size=4)
         model_path = 'checkpoints_{}'.format(args.model) + '/model{}.pt'.format(i)
-        model.load_state_dict(torch.load(model_path))
-        # model.eval()
-        decoder = GreedyDecoder()
-        cer = evaluate(model, test_loader, decoder)
-        # writer.add_scalar('acc', cer, i)
+        model.load_state_dict(torch.load(model_path)['model'])
+        #model.eval()
+        cer = evaluate(model, train_loader, decoder)
+        print(cer)
+
+    print('==============')
+
+    #test_loader = SpeechDataloader(SpeechDataset('test.csv'), batch_size=8)
+    #for i in range(29):
+    #    model_path = 'checkpoints_{}'.format(args.model) + '/model{}.pt'.format(i)
+    #    model.load_state_dict(torch.load(model_path)['model'])
+    #    decoder = GreedyDecoder()
+    #    #model.eval()
+    #    cer = evaluate(model, test_loader, decoder)
+    #    print(cer)

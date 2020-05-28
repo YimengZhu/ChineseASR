@@ -42,9 +42,8 @@ class SpeechDataset(Dataset):
 
         feature = librosa.feature.melspectrogram(y=sound, sr=sample_rate,
                                                  n_fft=512, hop_length=250,
-                                                 win_length=400,
-                                                 window='hamming',
-                                                 n_mels=40)
+                                                 n_mels=120)
+        feature = librosa.core.amplitude_to_db(feature)
         feature = (feature - feature.mean()) / feature.std()
         if self.stretch is not None:
             feature = self.stretch(feature)

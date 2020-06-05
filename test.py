@@ -2,9 +2,9 @@ import argparse
 import json
 from tqdm import tqdm
 from Levenshtein import distance
-from data_loader import SpeechDataset, SpeechDataloader
+from data.data_loader import SpeechDataset, SpeechDataloader
 from decoder import GreedyDecoder
-from model import DeepSpeech, DeepSpeechTransformer, DeepTransformer
+# from model import DeepSpeech, DeepSpeechTransformer, DeepTransformer
 import torch
 # from torch.utils.tensorboard import SummaryWriter
 from pdb import set_trace as bp

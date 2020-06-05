@@ -8,17 +8,22 @@ class GatedCNN(nn.Module):
         modules = []
 
         modules.append(nn.Conv1d(120, 500, 48, 2, 97))
+        modules.append(nn.BatchNorm1d(250))
         modules.append(nn.Dropout(0.2))
 
         for _ in range(7):
             modules.append(nn.Conv1d(250, 500, 7, 1))
+            modules.append(nn.BatchNorm1d(250))
             modules.append(nn.Dropout(0.3))
 
         modules.append(nn.Conv1d(250, 2000, 32, 1))
+        modules.append(nn.BatchNorm1d(1000))
         modules.append(nn.Dropout(0.5))
         modules.append(nn.Conv1d(1000, 2000, 1, 1))
+        modules.append(nn.BatchNorm1d(1000))
         modules.append(nn.Dropout(0.5))
         modules.append(nn.Conv1d(1000, 2000, 1, 1))
+        modules.append(nn.BatchNorm1d(1000))
         modules.append(nn.Dropout(0.5))
 
         self.convs = nn.ModuleList(modules)

@@ -21,10 +21,10 @@ class TransformerOptimizer:
 
         self.optimizer.step()
 
-
     def load_state_dict(self, state_dict):
         self.optimizer.load_state_dict(state_dict['optimizer'])
-        self.k = state_dict['k']
+        self.k = state_dict['k'] / 4
+        print(self.k, flush=True)
         self.init_lr = state_dict['init_lr']
         self.warmup_step = state_dict['warmup_step']
         self.step_num = state_dict['step_num']

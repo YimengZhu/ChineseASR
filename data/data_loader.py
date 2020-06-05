@@ -3,8 +3,8 @@ import numpy as np
 import torch
 from scipy.io.wavfile import read
 import librosa
-from data_aug import TimeStretch, SpectAugment
-from torch.utils.data import Dataset, DataLoader
+from data.data_aug import TimeStretch, SpectAugment
+from torch.utils.data import Dataset, DataLoader, sampler
 import pandas
 from pdb import set_trace as bp
 
@@ -88,4 +88,21 @@ class SpeechDataloader(DataLoader):
         super(SpeechDataloader, self).__init__(*args, **kwargs)
         self.collate_fn = collate
 
+
+
+class StochasticBucketSampler(sampler.Sampler):
+    def __init__(self, data_source, batch_size):
+        super(StochasticBucketSampler, self).__init__(data_source)
+        idx = list(range(len(data_source)))
+        self.bins = [idx[i:i + batch_size] for i in range(0, len(idx), batch_size)]
+
+    def __len__(self):
+        return len(self.bins)
+
+    def __iter__(self):
+        batch_idx = torch.randperm(len(self.bins)).tolist()
+        for idx in batch_idx:
+            sample_idx = self.bins[idx]
+            np.random.shuffle(sample_idx)
+            yield sample_idx
 

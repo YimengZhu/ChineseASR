@@ -16,7 +16,7 @@ class MultiHeadAttention(nn.Module):
         self.value = nn.Linear(dim_hidden, dim_hidden, bias=False)
         self.key = nn.Linear(dim_hidden, dim_hidden, bias=False)
 
-        self.dropout = nn.Dropout(0.2)
+        self.dropout = nn.Dropout(0.5)
         self.out = nn.Linear(dim_hidden, dim_hidden)
 
         nn.init.xavier_uniform_(self.query.weight)
@@ -68,7 +68,7 @@ class SelfAttention(nn.Module):
         self.fc2 = nn.Linear(dim_ff, dim_hidden)
         nn.init.xavier_uniform_(self.fc2.weight)
 
-        self.dropout = nn.Dropout(0.2)
+        self.dropout = nn.Dropout(0.5)
 
     def forward(self, x, x_lengths):
         drop_layer = (torch.rand(1)[0].item() < self.drop_layer)
@@ -105,3 +105,44 @@ class PositionEncoding(nn.Module):
         pos_enc = pos_enc.repeat(batch_size, 1, 1)
         x_pos_enc = torch.cat((x, pos_enc), 2)
         return x_pos_enc
+
+class SAN(nn.Module):
+    def __init__(self, num_char, input_dim=120, downsample=3, pos_dim=40,
+                 num_layer=10, num_header=8, hidden_dim=512, drop_layer=0.5):
+        super(SAN, self).__init__()
+        self.downsample = downsample
+
+        self.embedding = nn.Linear(input_dim * self.downsample, hidden_dim - pos_dim)
+        self.pos_enc = PositionEncoding(pos_dim)
+        nn.init.xavier_uniform_(self.embedding.weight)
+
+        self.atts = nn.ModuleList([
+            SelfAttention(num_header,
+                          hidden_dim,
+                          drop_layer=(l + 1.0) / num_layer * drop_layer)
+            for l in range(num_layer)])
+
+        self.fc = nn.Linear(hidden_dim, num_char)
+        nn.init.xavier_uniform_(self.fc.weight)
+
+    def forward(self, x, x_lengths):
+        n, t, d = x.size(0), x.size(1), x.size(2)
+        pad_length = (self.downsample - t % self.downsample) % self.downsample
+        padding = torch.FloatTensor(n, pad_length, d).zero_().cuda()
+        x = torch.cat((x, padding), 1)
+        x = x.reshape(n, x.size(1) // self.downsample, x.size(2) * self.downsample)
+
+        x = self.embedding(x)
+        x = self.pos_enc(x)
+        for att_layer in self.atts:
+            x = x + att_layer(x, x_lengths)
+
+        x = x.transpose(0, 1) # x.shape = T * N * D
+
+        t, n = x.size(0), x.size(1)
+        x = x.contiguous().view(t * n, -1)
+        x = self.fc(x)
+        x = x.view(t, n, -1)
+
+        x = F.log_softmax(x, dim=-1)
+        return x, x_lengths / self.downsample

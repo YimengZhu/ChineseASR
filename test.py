@@ -2,7 +2,7 @@ import argparse
 import json
 from tqdm import tqdm
 from Levenshtein import distance
-from data.data_loader import SpeechDataset, SpeechDataloader
+from data.loader import SpeechDataset, SpeechDataloader
 from decoder import GreedyDecoder
 # from model import DeepSpeech, DeepSpeechTransformer, DeepTransformer
 import torch

@@ -14,7 +14,7 @@ class TransformerOptimizer:
 
     def step(self):
         self.step_num += 1
-        lr = self.k * self.init_lr * min(self.step_num**(-0.3),
+        lr = self.k * self.init_lr * min(self.step_num**(-0.5),
                                          self.step_num*(self.warmup_step**(-1.5)))
         for param_group in self.optimizer.param_groups:
             param_group['lr'] = lr
@@ -23,7 +23,7 @@ class TransformerOptimizer:
 
     def load_state_dict(self, state_dict):
         self.optimizer.load_state_dict(state_dict['optimizer'])
-        self.k = state_dict['k'] / 4
+        self.k = state_dict['k']
         print(self.k, flush=True)
         self.init_lr = state_dict['init_lr']
         self.warmup_step = state_dict['warmup_step']

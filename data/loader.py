@@ -1,12 +1,15 @@
 import json
 import numpy as np
 import torch
+import torch.nn as nn
 from scipy.io.wavfile import read
 import librosa
-from data.data_aug import TimeStretch, SpectAugment
+from data.augment import TimeStretch, SpectAugment
 from torch.utils.data import Dataset, DataLoader, sampler
 import pandas
 from pdb import set_trace as bp
+
+import torchaudio
 
 class SpeechDataset(Dataset):
 
@@ -43,7 +46,7 @@ class SpeechDataset(Dataset):
         feature = librosa.feature.melspectrogram(y=sound, sr=sample_rate,
                                                  n_fft=512, hop_length=250,
                                                  n_mels=120)
-        feature = librosa.core.amplitude_to_db(feature)
+        feature = librosa.core.amplitude_to_db(feature)#, ref=np.max)
         feature = (feature - feature.mean()) / feature.std()
         if self.stretch is not None:
             feature = self.stretch(feature)

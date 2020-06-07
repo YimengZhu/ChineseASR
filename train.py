@@ -7,7 +7,7 @@ import argparse
 from models.deepspeech import DeepSpeech
 from models.gated_cnn import GatedCNN
 from models.attention import SAN
-from data.data_loader import SpeechDataset, SpeechDataloader, StochasticBucketSampler
+from data.loader import SpeechDataset, SpeechDataloader, StochasticBucketSampler
 from decoder import GreedyDecoder
 from test import evaluate
 from utils import train_log, set_deterministic
@@ -25,6 +25,7 @@ parser.add_argument('--warmup', type=int, default=8000)
 parser.add_argument('--clip_norm', type=float, default=1)
 parser.add_argument('--batch_size', type=int, default=8)
 parser.add_argument('--lr', type=float, default=0.6)
+parser.add_argument('--num_worker', type=int, default=16)
 
 set_deterministic()
 
@@ -70,9 +71,9 @@ def train(model, train_loader, optimizer,  epochs, scheduler):
 
 def acc(model):
     decoder = GreedyDecoder()
-    train_loader = SpeechDataloader(SpeechDataset('uf.csv'), batch_size=32)
+    train_loader = SpeechDataloader(SpeechDataset('uf.csv'), batch_size=16)
     train_acc = evaluate(model, train_loader, decoder)
-    test_loader = SpeechDataloader(SpeechDataset('test.csv'), batch_size=32)
+    test_loader = SpeechDataloader(SpeechDataset('test.csv'), batch_size=16)
     test_acc = evaluate(model, test_loader, decoder)
     return train_acc, test_acc
 
@@ -95,7 +96,7 @@ if __name__ == '__main__':
     train_dataset = SpeechDataset('train.csv', augment=args.augment)
     # train_sampler = StochasticBucketSampler(train_dataset,
     #                                        batch_size=args.batch_size)
-    train_loader = SpeechDataloader(train_dataset, num_workers=16,
+    train_loader = SpeechDataloader(train_dataset, num_workers=args.num_worker,
                                     batch_size=args.batch_size, shuffle=True)
 
     if args.model == 'SAN':
@@ -107,7 +108,7 @@ if __name__ == '__main__':
         scheduler = None
     else:
         optimizer = torch.optim.SGD(model.parameters(), lr=args.lr, momentum=0.8, nesterov=True)
-        scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=20, gamma=0.1)
+        scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, 0.985)
     if args.from_epoch != 0:
         model_path =  'checkpoints_{}/model{}.pt'.format(args.model, args.from_epoch - 1)
         checkpoint = torch.load(model_path)
